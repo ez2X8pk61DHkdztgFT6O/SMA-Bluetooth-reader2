@@ -50,13 +50,13 @@ ProtocolManager class handles:
                 
 Using the ProtocolManager, interacting with the SMA inverter looks like:
 
-// Start protocol manager<BR>    
+// Start protocol manager    
 ProtocolManager *pm = new ProtocolManager();<BR>
 // Connect<BR>
 if (pm->Connect((char *) "AB:CD:EF:12:34:56"))<BR>
 {<BR>
-  EXIT_ERR("Error connection to SMA inverter\n");<BR>      
-}<BR>     
+  EXIT_ERR("Error connection to SMA inverter\n");      
+}     
 // Login<BR> 
 if (!pm->Logon((char *) "0000")<BR>
 {<BR>
@@ -67,9 +67,9 @@ YieldInfo yi;   // yi.TimeStamp, yi.DailyYield, yi.TotalYield, ...<BR>
 if (pm->GetYieldInfo(yi))<BR>
 {<BR>
   EXIT_ERR("Error getting current totals\n");<BR>
-}<BR>                    
+}                    
 // Get historic daily yield<BR>
-HistoricInfo hi; // hi.NoRecords, hi.Records[0...NoRecords].TimeStap, hi.Records[0...NoRecords].Value<BR>    
+HistoricInfo hi; // hi.NoRecords, hi.Records[0...NoRecords].TimeStap, hi.Records[0...NoRecords].Value    
 if (pm->GetHistoricYield(0, yi.TimeStamp, hi, true) != 0)<BR>
 {<BR>
   EXIT_ERR("Error reading daily yield data.\n");<BR>
