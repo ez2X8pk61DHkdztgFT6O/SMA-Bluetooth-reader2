@@ -1,0 +1,149 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <fcntl.h>
+#include <vector>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/rfcomm.h>
+#include "L1.h"
+
+
+#ifndef __L2_H__
+#define __L2_H__
+
+// Error values
+#define ERR_SMA_CONNECTION_BROKEN     -1
+#define ERR_SMA_L2_CHECKSUM           -2
+#define ERR_SMA_INVALID_PACKET        -3
+
+// Head & tail bytes
+#define L2_head     0x7e
+#define L2_tail     0x7e
+
+// Default header, destination, and source
+const uint8_t L2_default_header[] = { 0xff, 0x03, 0x60, 0x65 };
+const uint8_t L2_default_destination[] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+const uint8_t L2_default_source[] = { 0x5c, 0xaf, 0xf0, 0x1d, 0x50, 0x00 };
+
+// Collection of commands & corresponding data
+
+// L2: login 1. Inverter sends L2 packet in reply
+const uint8_t L2_command_login_1[5] = { 0x80, 0x00, 0x02, 0x00, 0x00};
+const uint8_t L2_data_login_1[8] = { 0, 0, 0, 0, 0, 0, 0, 0};
+// L2: login 2. Inverter does not reply
+const uint8_t L2_command_login_2[5] = { 0x80, 0x0E, 0x01, 0xFD, 0xFF};
+const uint8_t L2_data_login_2[4] = { 0xFF, 0xFF, 0xFF, 0xFF};
+// L2: logon. Replace data bytes 16...27 by the password (byte values + 0x88)
+const uint8_t L2_command_logon[5] = { 0x80, 0x0C, 0x04, 0xFD, 0xFF };
+const uint8_t L2_data_logon[28] = { 0x07, 0x00, 0x00, 0x00, 0x84, 0x03, 0x00, 0x00, 0xAA, 0xAA, 0xBB, 0xBB, 0x00, 0x00, 0x00, 0x00, 0,0,0,0,0,0,0,0,0,0,0,0 };
+// L2: request daily yield, total yield, feed-in time, ...
+const uint8_t L2_command_daily_yield[5] = { 0x80, 0x00, 0x02, 0x00, 0x54 };    
+const uint8_t L2_data_daily_yield[8] = { 0x00, 0x00, 0x20, 0x00, 0xff, 0xff, 0x5f, 0x00 };
+// L2: request historic 5 min interval data
+const uint8_t L2_command_historic_yield_5[5] = { 0x80, 0x00, 0x02, 0x00, 0x70 };
+const uint8_t L2_command_historic_yield_daily[5] = { 0x80, 0x00, 0x02, 0x20, 0x70 };
+typedef struct __attribute__ ((__packed__))
+{
+  uint32_t timestamp_from;
+  uint32_t timestamp_to;
+} L2_data_historic_yield; 
+
+// checksum: uint16 0xFFFF
+
+// Copied from nanodesmapvmonitor
+const uint16_t  fcstab[256]  = {
+  0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,0x8c48, 0x9dc1, 0xaf5a, 0xbed3, 0xca6c, 0xdbe5, 0xe97e, 0xf8f7,0x1081, 0x0108, 0x3393, 0x221a, 0x56a5, 0x472c, 0x75b7, 0x643e,0x9cc9, 0x8d40, 0xbfdb, 0xae52, 0xdaed, 0xcb64, 0xf9ff, 0xe876,
+  0x2102, 0x308b, 0x0210, 0x1399, 0x6726, 0x76af, 0x4434, 0x55bd,0xad4a, 0xbcc3, 0x8e58, 0x9fd1, 0xeb6e, 0xfae7, 0xc87c, 0xd9f5,0x3183, 0x200a, 0x1291, 0x0318, 0x77a7, 0x662e, 0x54b5, 0x453c,0xbdcb, 0xac42, 0x9ed9, 0x8f50, 0xfbef, 0xea66, 0xd8fd, 0xc974,
+  0x4204, 0x538d, 0x6116, 0x709f, 0x0420, 0x15a9, 0x2732, 0x36bb,0xce4c, 0xdfc5, 0xed5e, 0xfcd7, 0x8868, 0x99e1, 0xab7a, 0xbaf3,0x5285, 0x430c, 0x7197, 0x601e, 0x14a1, 0x0528, 0x37b3, 0x263a,0xdecd, 0xcf44, 0xfddf, 0xec56, 0x98e9, 0x8960, 0xbbfb, 0xaa72,
+  0x6306, 0x728f, 0x4014, 0x519d, 0x2522, 0x34ab, 0x0630, 0x17b9,0xef4e, 0xfec7, 0xcc5c, 0xddd5, 0xa96a, 0xb8e3, 0x8a78, 0x9bf1,0x7387, 0x620e, 0x5095, 0x411c, 0x35a3, 0x242a, 0x16b1, 0x0738,0xffcf, 0xee46, 0xdcdd, 0xcd54, 0xb9eb, 0xa862, 0x9af9, 0x8b70,
+  0x8408, 0x9581, 0xa71a, 0xb693, 0xc22c, 0xd3a5, 0xe13e, 0xf0b7,0x0840, 0x19c9, 0x2b52, 0x3adb, 0x4e64, 0x5fed, 0x6d76, 0x7cff,0x9489, 0x8500, 0xb79b, 0xa612, 0xd2ad, 0xc324, 0xf1bf, 0xe036,0x18c1, 0x0948, 0x3bd3, 0x2a5a, 0x5ee5, 0x4f6c, 0x7df7, 0x6c7e,
+  0xa50a, 0xb483, 0x8618, 0x9791, 0xe32e, 0xf2a7, 0xc03c, 0xd1b5,0x2942, 0x38cb, 0x0a50, 0x1bd9, 0x6f66, 0x7eef, 0x4c74, 0x5dfd,0xb58b, 0xa402, 0x9699, 0x8710, 0xf3af, 0xe226, 0xd0bd, 0xc134,0x39c3, 0x284a, 0x1ad1, 0x0b58, 0x7fe7, 0x6e6e, 0x5cf5, 0x4d7c,
+  0xc60c, 0xd785, 0xe51e, 0xf497, 0x8028, 0x91a1, 0xa33a, 0xb2b3,0x4a44, 0x5bcd, 0x6956, 0x78df, 0x0c60, 0x1de9, 0x2f72, 0x3efb,0xd68d, 0xc704, 0xf59f, 0xe416, 0x90a9, 0x8120, 0xb3bb, 0xa232,0x5ac5, 0x4b4c, 0x79d7, 0x685e, 0x1ce1, 0x0d68, 0x3ff3, 0x2e7a,
+  0xe70e, 0xf687, 0xc41c, 0xd595, 0xa12a, 0xb0a3, 0x8238, 0x93b1,0x6b46, 0x7acf, 0x4854, 0x59dd, 0x2d62, 0x3ceb, 0x0e70, 0x1ff9,0xf78f, 0xe606, 0xd49d, 0xc514, 0xb1ab, 0xa022, 0x92b9, 0x8330,0x7bc7, 0x6a4e, 0x58d5, 0x495c, 0x3de3, 0x2c6a, 0x1ef1, 0x0f78
+}; 
+
+typedef struct __attribute__ ((__packed__))
+{
+  uint8_t head;
+  uint8_t header[4];
+  uint8_t length;
+  uint8_t destination_prefix;
+  uint8_t destination[6];       // L2_default_destination
+  uint8_t padding;              // 0x0
+  uint8_t source_prefix;
+  uint8_t source[6];            // L2_default_source  
+  uint8_t mystery_1a;           // 0x0
+  uint8_t mystery_1b;
+  uint8_t acknowledge;          // 0x0 works outgoing
+  uint8_t mystery_2;            // 0x0
+  uint16_t telegram_number;     // (0x0 for outgoing normal packet)
+  uint8_t packet_index;         // 
+  uint8_t command[5];           // command
+} L2PacketHeader;
+
+// L2 packet structure
+class L2Packet 
+{
+public:
+  L2PacketHeader header;
+    
+  // Constructor: set default header values
+  L2Packet()
+  {    
+    memset(&header, 0, sizeof(L2PacketHeader));
+    header.head = L2_head;
+    memcpy(&header.header, &L2_default_header, sizeof(L2_default_header));    
+    memcpy(&header.source, &L2_default_source, sizeof(L2_default_source));
+    memcpy(&header.destination, &L2_default_destination, sizeof(L2_default_destination));
+  }
+  
+  // Destructor: free data
+  ~L2Packet()
+  {
+  }
+
+  // Set (main) variable fields in L2 header
+  void SetFields(uint8_t destination_prefix, uint8_t source_prefix, uint8_t mystery_1b, uint8_t packet_index, const uint8_t* command)
+  {
+    header.destination_prefix = destination_prefix;
+    header.source_prefix = source_prefix,
+    header.mystery_1b = mystery_1b;
+    header.packet_index = packet_index;
+    memcpy(header.command, command, 5);
+  }
+  
+  // Return packet index
+  uint8_t PacketIndex()
+  {
+    return header.packet_index;
+  }
+  
+  // Return telegram number
+  uint16_t TelegramNumber()
+  {
+    return ntohs(header.telegram_number);
+  }
+  
+  
+  // Return contents of packet (including data, checksum, and footer) in escaped form ready for sending
+  uint8_t* PreparePacket(const uint8_t *data, int data_length, int *len);
+  // Construct L2 packet from escaped data. Check checksum, header bytes, ... 
+  // Returns data length (>=0) on success, <0 on failure. The orignal data in *data will be overwritten with the data portion of the
+  // L2 packet.
+  int ReadPacket(uint8_t *data, int len);
+  // Calculate checksum  
+  uint16_t CheckSum(const uint8_t *data, int len);
+  
+  private:
+  
+   
+  // Escape data, result to vector
+  void EscapeData(std::vector<uint8_t>& destintation, const uint8_t *src, unsigned int length);
+  // Unescape data in-place, return length of unescaped data
+  int UnescapeData(uint8_t *src, int length);
+  
+  
+};
+
+
+#endif
