@@ -17,12 +17,22 @@ Read daily and/or 5 minute data and store it incrementally in an SQLite database
 ./sma_sqlite --MAC 01:02:03:04:05:06 --password 0000 --5minute --daily --sqlite /var/share/pv/data.sql
 
 sma_pvoutput:
-Upload latest 5 minute value to pvoutput. Usage:
+Upload 5 minute values to pvoutput. Usage:
  ./sma_pvoutput --MAC 01:02:03:04:05:06 --password 0000 --api_key fad4faa1eeafde17d4446b739e813121ff80b928d --sid 12345
 
 sma_txt:       
 to do: export as text
 
+Note: sma_pvoutput retrieves the timestamp of the latest uploaded value from the
+pvoutput site. Next, it determines which records need to be uploaded. pvoutput
+accepts 'historic' records up to 14 days before the current date. sma_pvoutput
+uses a limit of 12 (--max_days 12) by default and will not try to upload older
+production records. Production records are uploaded in batches of --max_batch,
+30 by default (maximum for free at pvoutput). This means that when sma_pvoutput
+has not been excuted for a while, it may take multiple executions to upload
+the backlogged data. Note that pvoutput limits the amount of uploads to 60/hr.
+When calling sma_pvoutput once every hour, one can easily keep up with the
+incoming data (12 records 'created' per hour, 30 per batch).  
 
 Files can be compiled separately. For sma_txt, the only requirement is the
 presence of libbluetooth on the system. Compilation is currently done using a

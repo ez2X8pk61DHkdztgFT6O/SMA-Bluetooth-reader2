@@ -67,7 +67,7 @@ int main(int argc, char **argv)
     // Connect
     if (pm->Connect(options.MAC))
     {
-      EXIT_ERR("Error connection to SMA inverter\n");      
+      EXIT_ERR("Error connecting to SMA inverter\n");      
     }     
     // Login 
     if (!pm->Logon(options.Password))

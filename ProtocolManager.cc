@@ -231,7 +231,7 @@ bool ProtocolManager::Logon(uint8_t* password)
   
   
   // Get historic yield. daily = true: daily values, daily = false: 5 minute updates
-  int ProtocolManager::GetHistoricYield(uint32_t from, uint32_t to, HistoricInfo& hi, bool daily)
+  int ProtocolManager::GetHistoricYield(int32_t from, int32_t to, HistoricInfo& hi, bool daily)
   {
     L2Packet l2;
     uint8_t *data;

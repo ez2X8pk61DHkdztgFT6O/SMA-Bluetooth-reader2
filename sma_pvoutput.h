@@ -10,6 +10,8 @@ static struct option long_options[] =
        {"password", required_argument, 0, 'p'},
        {"api_key",  required_argument, 0, 'a'},
        {"sid",      required_argument, 0, 's'},
+       {"batch_max",required_argument, 0, 'b'},
+       {"days_max", required_argument, 0, 'd'},
        {0, 0, 0, 0}
      };
 
@@ -21,11 +23,15 @@ class Options
   uint8_t Password[13]; 
   char APIKey[1024];
   char SystemID[1024];
+  int BatchMaximum;
+  int DaysMaximum;
   
   int Initialize(int argc, char **argv)
   {
-    // Clear values
+    // Clear values, set defaults
     memset(this, 0, sizeof(Options));
+    BatchMaximum = 30;    // at most 30 datapoints in a single upload
+    DaysMaximum = 12;     // at most 12 days back (14 and 13 seemed to give errors, time zone issue?)
     // Process arguments
     while (true)
     {
@@ -67,9 +73,15 @@ class Options
               return -1;
             }
             strcpy(SystemID, optarg);
+        break;
+        case 'b':
+          BatchMaximum = atoi(optarg);
+        break;
+        case 'd':
+          DaysMaximum = atoi(optarg);
         break;           
         case '?':
-            printf("Usage:\n--MAC MAC address of SMA inverter\n--password Password\n--api_key API key set in pvoutput settings\n--sid System ID as known by pvoutput\n");
+            printf("Usage:\n--MAC MAC address of SMA inverter\n--password Password\n--api_key API key set in pvoutput settings\n--sid System ID as known by pvoutput\nOptional:\n--batch_max Maximum number of entries in an upload (30)\n--days_max Maximum number of days in the past that will be uploaded (12).");
             return -1;
         break;
       }

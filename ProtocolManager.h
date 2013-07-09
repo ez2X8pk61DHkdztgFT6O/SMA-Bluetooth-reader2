@@ -15,7 +15,7 @@
 
 typedef struct
 {
-  uint32_t TimeStamp;     // s since...
+  int32_t TimeStamp;     // s since...
   uint32_t Total;         // [Wh]
   uint32_t Today;         // [Wh]
   uint32_t OperatingTime; // [s]
@@ -24,7 +24,7 @@ typedef struct
 
 typedef struct
 {
-  uint32_t TimeStamp;
+  int32_t TimeStamp;
   uint32_t Value;
 } HistoricInfoItem;
 
@@ -47,14 +47,14 @@ typedef struct __attribute__ ((__packed__))
   uint8_t one;
   uint16_t code;
   uint8_t zero;  
-  uint32_t timestamp;
+  int32_t timestamp;
   uint32_t value;
   uint32_t fill;
 } _ValueInfo;
 
 typedef struct __attribute__ ((__packed__))
 {    
-  uint32_t timestamp;
+  int32_t timestamp;
   uint32_t value;
   uint32_t fill;
 } _HistoricYieldInfo;
@@ -84,7 +84,7 @@ class ProtocolManager
   bool Logon(uint8_t* password);
   int GetYieldInfo(YieldInfo& yi);
   
-  int GetHistoricYield(uint32_t from, uint32_t to, HistoricInfo& hi, bool daily);
+  int GetHistoricYield(int32_t from, int32_t to, HistoricInfo& hi, bool daily);
   
   // Close connection
   void Close();
